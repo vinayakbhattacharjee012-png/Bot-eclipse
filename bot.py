@@ -10,6 +10,8 @@ import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 
+from utils.keepalive import run_keepalive_server
+
 load_dotenv()
 
 TOKEN = os.getenv("DISCORD_TOKEN")
@@ -98,11 +100,23 @@ async def on_app_command_error(interaction: discord.Interaction, error: discord.
         pass
 
 
+async def run() -> None:
+    # The keep-alive HTTP server runs alongside the real bot connection so
+    # this can deploy as a free Render Web Service (which requires something
+    # listening on $PORT) instead of a paid Background Worker. If PORT isn't
+    # set (e.g. running locally), the server still starts on 8080 but nothing
+    # needs to ping it.
+    await asyncio.gather(
+        run_keepalive_server(bot),
+        bot.start(TOKEN),
+    )
+
+
 def main() -> None:
     if not TOKEN:
         log.error("DISCORD_TOKEN is not set. Copy .env.example to .env and fill in your bot token.")
         sys.exit(1)
-    asyncio.run(bot.start(TOKEN))
+    asyncio.run(run())
 
 
 if __name__ == "__main__":
