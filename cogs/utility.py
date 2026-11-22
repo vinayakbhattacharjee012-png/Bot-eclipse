@@ -169,6 +169,12 @@ class Utility(commands.Cog):
         )
         embed.add_field(name="✅ Verification", value="`/setupverification`", inline=False)
         embed.add_field(name="💤 AFK", value="`/afk`", inline=False)
+        embed.add_field(
+            name="🧩 More modules",
+            value="`/mod` `/automod` `/security` `/eco` `/game` `/akinator` `/anicatch` `/ticket` "
+                  "`/ai` `/automation` `/giveaway` `/music` `/backup` `/info` `/feature`",
+            inline=False,
+        )
         embed.set_footer(text="Admin-only commands won't show up in the Discord UI unless you have permission.")
         await interaction.response.send_message(embed=embed, ephemeral=True)
 

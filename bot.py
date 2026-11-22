@@ -10,7 +10,9 @@ import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 
+from utils import scheduler
 from utils.keepalive import run_keepalive_server
+from utils.tree import EclipseTree
 
 load_dotenv()
 
@@ -35,12 +37,28 @@ COGS = [
     "cogs.utility",
     "cogs.verification",
     "cogs.afk",
+    # Eclipse modules
+    "cogs.features",
+    "cogs.mod_plus",
+    "cogs.automod",
+    "cogs.security",
+    "cogs.economy",
+    "cogs.games",
+    "cogs.akinator",
+    "cogs.anicatch",
+    "cogs.tickets",
+    "cogs.ai",
+    "cogs.automation",
+    "cogs.giveaways",
+    "cogs.music",
+    "cogs.backup",
+    "cogs.info",
 ]
 
 
 class Bot(commands.Bot):
     def __init__(self) -> None:
-        super().__init__(command_prefix="!", intents=INTENTS, help_command=None)
+        super().__init__(command_prefix="!", intents=INTENTS, help_command=None, tree_cls=EclipseTree)
 
     async def setup_hook(self) -> None:
         for ext in COGS:
@@ -49,6 +67,7 @@ class Bot(commands.Bot):
                 log.info("Loaded %s", ext)
             except Exception:
                 log.exception("Failed to load %s", ext)
+        scheduler.start(self)
 
         if DEV_GUILD_ID:
             guild = discord.Object(id=int(DEV_GUILD_ID))

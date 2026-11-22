@@ -8,6 +8,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
+from utils import features
 from utils.storage import store
 
 
@@ -34,6 +35,8 @@ class AFK(commands.Cog):
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message) -> None:
         if message.author.bot or not message.guild:
+            return
+        if not features.enabled(message.guild.id, "afk"):
             return
         g = store.guild(message.guild.id)
         afk_map = g["afk"]

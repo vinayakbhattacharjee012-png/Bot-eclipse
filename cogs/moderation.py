@@ -10,6 +10,8 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
+from cogs.mod_plus import escalate, log_case
+from utils import features
 from utils.storage import store
 
 
@@ -64,6 +66,8 @@ class Moderation(commands.Cog):
         except discord.Forbidden:
             await interaction.response.send_message("I don't have permission to kick that member.", ephemeral=True)
             return
+        log_case(interaction.guild_id, "kick", member.id, interaction.user.id, reason)
+        await store.save()
         await interaction.response.send_message(f"👢 Kicked **{member}**. Reason: {reason}")
         await self._log(interaction.guild, discord.Embed(
             title="Member kicked", color=discord.Color.orange(),
@@ -83,6 +87,8 @@ class Moderation(commands.Cog):
         except discord.Forbidden:
             await interaction.response.send_message("I don't have permission to ban that member.", ephemeral=True)
             return
+        log_case(interaction.guild_id, "ban", member.id, interaction.user.id, reason)
+        await store.save()
         await interaction.response.send_message(f"🔨 Banned **{member}**. Reason: {reason}")
         await self._log(interaction.guild, discord.Embed(
             title="Member banned", color=discord.Color.red(),
@@ -123,6 +129,8 @@ class Moderation(commands.Cog):
         except discord.Forbidden:
             await interaction.response.send_message("I don't have permission to timeout that member.", ephemeral=True)
             return
+        log_case(interaction.guild_id, "timeout", member.id, interaction.user.id, f"{minutes}m: {reason}")
+        await store.save()
         await interaction.response.send_message(f"🔇 Timed out **{member}** for {minutes} minute(s). Reason: {reason}")
         await self._log(interaction.guild, discord.Embed(
             title="Member timed out", color=discord.Color.orange(),
@@ -149,9 +157,13 @@ class Moderation(commands.Cog):
         g["warnings"].setdefault(str(member.id), []).append({
             "reason": reason, "moderator_id": interaction.user.id, "timestamp": time.time(),
         })
-        await store.save()
         count = len(g["warnings"][str(member.id)])
+        log_case(interaction.guild_id, "warn", member.id, interaction.user.id, reason)
+        await store.save()
         await interaction.response.send_message(f"⚠️ Warned **{member}** (warning #{count}). Reason: {reason}")
+        note = await escalate(interaction.guild, member, count, interaction.user)
+        if note:
+            await interaction.followup.send(note, ephemeral=True)
         await self._log(interaction.guild, discord.Embed(
             title="Member warned", color=discord.Color.yellow(),
             description=f"**Member:** {member} ({member.id})\n**By:** {interaction.user}\n**Reason:** {reason}\n**Total warnings:** {count}",
@@ -268,6 +280,8 @@ class Moderation(commands.Cog):
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message) -> None:
         if message.author.bot or not message.guild:
+            return
+        if not features.enabled(message.guild.id, "moderation"):
             return
         cfg = store.guild(message.guild.id)["config"]
         if not cfg.get("antispam_enabled", True):

@@ -10,6 +10,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
+from utils import features
 from utils.storage import store
 
 XP_MIN, XP_MAX = 15, 25
@@ -37,6 +38,8 @@ class Leveling(commands.Cog):
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message) -> None:
         if message.author.bot or not message.guild:
+            return
+        if not features.enabled(message.guild.id, "leveling"):
             return
 
         key = (message.guild.id, message.author.id)

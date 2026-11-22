@@ -96,6 +96,44 @@ utils/
 data/store.json          created automatically on first run
 ```
 
+## Eclipse modules
+
+These were added on top of the original bot. Every module can be switched on or off per server with `/feature toggle`. Turning one off makes its commands and listeners stop, and the bot says so.
+
+| Module | Commands | Notes |
+|---|---|---|
+| Catalog | `/feature list`, `info`, `search`, `toggle`, `stats` | 50,000 preset entries (25 categories × 40 actions × 5 scopes × 10 strengths). Generated on demand, not stored. Only the module switches change behaviour. |
+| Moderation+ | `/mod softban`, `tempban`, `nick`, `role_add`, `role_remove`, `cases`, `escalation` | Tempbans lift themselves. Every kick, ban, timeout and warning is logged as a case. Warnings can escalate to a timeout or ban. |
+| Automod | `/automod show`, `rule`, `word_add`, `word_remove`, `domain_add`, `strikes`, `clear_strikes` | Rules: invites, links, mass mentions, caps, zalgo, emoji spam, blocked words, duplicates. Strikes lead to a timeout or ban. |
+| Anti-nuke | `/security status`, `threshold`, `quarantine_role`, `whitelist`, `enable` | Watches the audit log for bursts of channel/role deletes, bans, kicks, webhooks and bot adds. Strips the actor's roles. No automatic rollback. |
+| Economy | `/eco balance`, `daily`, `work`, `pay`, `rob`, `gamble`, `slots`, `shop_list`, `shop_add`, `shop_remove`, `buy`, `inventory`, `use`, `trade`, `leaderboard` | Virtual coins only. Shop items can be roles or consumables. |
+| Games | `/game toss`, `dice`, `rps`, `number`, `trivia`, `leaderboard` | Trivia answers are checked. Wins go on a leaderboard. |
+| Akinator | `/akinator` | 20 questions with Undo and Restart. Confidence-based guesses. Uses a small built-in set of 12 animals. |
+| AniCatch | `/anicatch catch`, `dex`, `battle`, `trade`, `leaderboard` | Creatures appear as chat gets busy. Pity guarantees a catch after 8 misses in a row. |
+| Tickets | `/ticket setup`, `open`, `claim`, `close` | Private channels. Closing saves a transcript to the mod-log channel. |
+| AI | `/ai ask`, `summarize`, `code`, `research`, `status` | Needs `AI_BASE_URL`, `AI_API_KEY` and `AI_MODEL`. Without them it says so. Research has no live web search. |
+| Automation | `/automation responder_add`, `responder_remove`, `responder_list`, `remind`, `welcome`, `goodbye`, `boost`, `starboard`, `embed` | Auto-replies and `!commands`. Reminders survive restarts. |
+| Giveaways | `/giveaway start` | Enter by reacting with 🎉. Winners are drawn when the timer ends. |
+| Music | `/music status`, `add`, `queue`, `skip`, `clear` | Queue only. **Nothing plays.** `/music status` lists what is missing. |
+| Backup | `/backup export`, `/backup validate` | Export works. Validation only checks the file. **Restore is not included.** |
+| Info | `/info role`, `/info banner` | Role details and profile banners. |
+
+What is **not** built, on purpose: automatic restore of deleted channels or roles, music playback, live web search for the AI, and any feature that needs a paid API key you haven't supplied. Each of these either says so, or is absent.
+
+### Setup for the new modules
+
+1. In the Developer Portal, the bot needs the **View Audit Log** permission for anti-nuke to work.
+2. For the AI commands, set `AI_BASE_URL`, `AI_API_KEY` and `AI_MODEL` in your host's environment settings. Never put the key in code or in `.env` files you commit.
+3. Run `/feature list` to see the switches, and `/feature toggle` to turn a module off.
+
+### Tests
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+These tests cover the catalog, switches, rate limits, automod rules, akinator and AniCatch logic, economy odds, game rules, the backup checker, the AI client (against a local fake server), and that every cog loads without exceeding Discord's command limits. They do not connect to Discord.
+
 ## Extending it
 
-Each file in `cogs/` is self-contained — add a new file there and list it in `COGS` in `bot.py` to add a new feature area without touching existing code.
+Each file in `cogs/` is self-contained — add a new file there and list it in `COGS` in `bot.py` to add a new feature area without touching existing code. Commands are mapped to a module switch in `utils/features.py` (`COMMAND_CATEGORY`). Add a line there to put a new command under a switch.

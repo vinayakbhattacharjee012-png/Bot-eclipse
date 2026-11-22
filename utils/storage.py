@@ -111,5 +111,9 @@ class Storage:
                 g.setdefault(section, defaults[section])
         return self._data["guilds"][key]
 
+    def guild_ids(self) -> list[str]:
+        """Every guild id with stored data (as strings)."""
+        return list(self._data["guilds"].keys())
+
 
 store = Storage()
