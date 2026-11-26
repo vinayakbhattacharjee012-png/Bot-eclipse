@@ -6,17 +6,17 @@ import logging
 import os
 import sys
 
+import aiohttp
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 
-from utils import scheduler
+from utils import discord_token, scheduler
 from utils.keepalive import run_keepalive_server
 from utils.tree import EclipseTree
 
 load_dotenv()
 
-TOKEN = os.getenv("DISCORD_TOKEN")
 DEV_GUILD_ID = os.getenv("DEV_GUILD_ID")
 OWNER_LOG_CHANNEL_ID = os.getenv("OWNER_LOG_CHANNEL_ID")
 
@@ -119,23 +119,34 @@ async def on_app_command_error(interaction: discord.Interaction, error: discord.
         pass
 
 
-async def run() -> None:
+async def run(token: str) -> None:
     # The keep-alive HTTP server runs alongside the real bot connection so
     # this can deploy as a free Render Web Service (which requires something
     # listening on $PORT) instead of a paid Background Worker. If PORT isn't
     # set (e.g. running locally), the server still starts on 8080 but nothing
     # needs to ping it.
-    await asyncio.gather(
-        run_keepalive_server(bot),
-        bot.start(TOKEN),
-    )
+    async with bot:  # closes Discord's HTTP session even if login fails
+        await asyncio.gather(
+            run_keepalive_server(bot),
+            bot.start(token),
+        )
 
 
 def main() -> None:
-    if not TOKEN:
-        log.error("DISCORD_TOKEN is not set. Copy .env.example to .env and fill in your bot token.")
+    try:
+        token = discord_token.load()
+    except discord_token.TokenError as exc:
+        log.error("%s", exc)
         sys.exit(1)
-    asyncio.run(run())
+    log.info("DISCORD_TOKEN %s", discord_token.describe(token))
+    try:
+        asyncio.run(run(token))
+    except discord.LoginFailure:
+        log.error("Discord rejected DISCORD_TOKEN. Reset it in the Developer Portal, then run: python scripts/set_token.py")
+        sys.exit(1)
+    except aiohttp.ClientConnectionError as exc:
+        log.error("Couldn't reach Discord (%s). Check the internet connection and try again.", type(exc).__name__)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

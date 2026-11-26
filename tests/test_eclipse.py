@@ -429,5 +429,48 @@ class WiringTests(unittest.TestCase):
             features.set_enabled(gid, "economy", True)
 
 
+class TokenTests(unittest.TestCase):
+    # Built at runtime so secret scanners don't mistake it for a real token.
+    SHAPED = ".".join(["A" * 24, "B" * 6, "C" * 27])
+
+    def test_bad_tokens_are_explained(self):
+        from utils import discord_token as dt
+        self.assertIn("not set", dt.problem(""))
+        self.assertIn("placeholder", dt.problem(dt.PLACEHOLDER))
+        self.assertIn("without 'Bot '", dt.problem("Bot " + self.SHAPED))
+        self.assertIn("doesn't look like", dt.problem("abc.def"))
+        self.assertIsNone(dt.problem(self.SHAPED))
+
+    def test_paste_noise_is_cleaned(self):
+        from utils import discord_token as dt
+        self.assertEqual(dt.clean(f'  "{self.SHAPED}"\n'), self.SHAPED)
+
+    def test_load_fails_fast_and_never_echoes_the_token(self):
+        from utils import discord_token as dt
+        with patch.dict(os.environ, {"DISCORD_TOKEN": "not-a-token-xyz"}), self.assertRaises(dt.TokenError) as ctx:
+            dt.load()
+        self.assertNotIn("not-a-token-xyz", str(ctx.exception))
+        self.assertIn("scripts/set_token.py", str(ctx.exception))
+        with patch.dict(os.environ, {"DISCORD_TOKEN": f" {self.SHAPED} "}):
+            self.assertEqual(dt.load(), self.SHAPED)
+        self.assertEqual(dt.describe(self.SHAPED), f"set ({len(self.SHAPED)} characters)")
+        self.assertNotIn(self.SHAPED, dt.describe(self.SHAPED))
+
+    def test_save_replaces_only_the_token_line_with_private_permissions(self):
+        import tempfile
+
+        sys.path.insert(0, str(ROOT / "scripts"))
+        import set_token
+
+        with tempfile.TemporaryDirectory() as tmp:
+            example = Path(tmp) / ".env.example"
+            env = Path(tmp) / ".env"
+            example.write_text("# comment\nDISCORD_TOKEN=your-bot-token-here\nDEV_GUILD_ID=123\n", encoding="utf-8")
+            set_token.save(self.SHAPED, env_file=env, example_file=example)
+            self.assertEqual(env.read_text(encoding="utf-8"), f"# comment\nDISCORD_TOKEN={self.SHAPED}\nDEV_GUILD_ID=123\n")
+            self.assertEqual(env.stat().st_mode & 0o777, 0o600)
+            self.assertIn("your-bot-token-here", example.read_text(encoding="utf-8"))  # example untouched
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
